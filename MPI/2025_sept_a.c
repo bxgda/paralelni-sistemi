@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     int po_procesu = K / p; // kolona po procesu = vrsta po procesu
 
     int *locA = (int *)malloc(N * po_procesu * sizeof(int));
-    int *locB = (int *)malloc(K * po_procesu * sizeof(int));
+    int *locB = (int *)malloc(M * po_procesu * sizeof(int));
     int *locC = (int *)calloc(N * M, sizeof(int));
     int *locMinB = (int *)malloc(po_procesu * sizeof(int));
 
