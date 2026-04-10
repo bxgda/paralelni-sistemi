@@ -1,14 +1,16 @@
 /*
     TEKST ZADATKA:
 
-    Napisati MPI program koji realizuje množenje matrice Aₙₓₖ i matrice Bₖₓₘ,
-    čime se dobija i prikazuje rezultujuća matrica C.
-    Takođe, program pronalazi i prikazuje minimum elemenata svake vrste matrice B
-    (p- broj procesa, k deljivo sa p). Master proces inicijalizuje matricu A i matricu B.
-    Predvideti da se slanje svih kolona matrice A jednom procesu obavlja odjednom i direktno iz matrice A.
-    Predvideti da se slanje svih vrsta matrice B jednom procesu obavlja odjednom i direktno iz matrice B.
-    Svi procesi učestvuju u izračunavanjima potrebnim za generisanje rezultata programa.
-    Rezultati programa se nalaze u proizvoljnom procesu koji ih i prikazuje.
+    Napisati MPI program koji realizuje množenje mattrice A N x K i matrice B K x M, 
+    čime se dobija i prikazuje rezultujuća matrica C. 
+    Takođe program pronalazi i prikazuje minimum elemenata svake vrste matrice A. 
+    Izračunavanje se obavlja tako što master proces šalje svakom procesu po K/p kolona matrice A 
+    i po K/p vrsta matrice B (p - broj procesa, K deljivo sa p). 
+    Master proces inicijalizuje matricu A i matricu B. 
+    Predvideti da se slanje svih kolona matrice A jednom procesu obavlja odjenom direktno iz matrice A. 
+    Predvideti da se sladnje svih vrsta matrice B jednom procesu obavlja odjednom i direktno iz matrice B. 
+    Svi procesi učestvuju u izračunavanjima potrebnim za generisanje rezultata programa. 
+    Rezultati programa se nalaze u proizvoljnom procesu koji ih prikazuje. 
     Zadatak realizovati korišćenjem grupnih operacija.
 */
 
@@ -24,7 +26,7 @@
 int main(int argc, char *argv[])
 {
     // #1
-    int A[N][K], B[K][M], C[N][M], minB[K];
+    int A[N][K], B[K][M], C[N][M], minA[N], locC[N * M] = {0}, locMinA[N]; 
     int rank, p;
 
     MPI_Init(&argc, &argv);
@@ -32,19 +34,17 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &p);
 
     // #2
-    int po_procesu = K / p; // kolona po procesu = vrsta po procesu
+    int po_procesu = K / p; 
 
     int *locA = (int *)malloc(N * po_procesu * sizeof(int));
     int *locB = (int *)malloc(M * po_procesu * sizeof(int));
-    int *locC = (int *)calloc(N * M, sizeof(int));
-    int *locMinB = (int *)malloc(po_procesu * sizeof(int));
 
     // #3
     if (rank == 0)
     {
         for (int i = 0; i < N; i++)
             for (int j = 0; j < K; j++)
-                A[i][j] = i + j + 1;
+                A[i][j] = i + j + 1; 
 
         for (int i = 0; i < K; i++)
             for (int j = 0; j < M; j++)
@@ -66,17 +66,19 @@ int main(int argc, char *argv[])
             for (int k = 0; k < po_procesu; k++)
                 locC[i * M + j] += locA[i * po_procesu + k] * locB[k * M + j];
 
-    for (int i = 0; i < po_procesu; i++)
+    for (int i = 0; i < N; i++)
     {
-        locMinB[i] = INT_MAX;
-        for (int j = 0; j < M; j++)
-            if (locB[i * M + j] < locMinB[i])
-                locMinB[i] = locB[i * M + j];
+        locMinA[i] = INT_MAX;
+        for (int j = 0; j < po_procesu; j++)
+        {
+            if (locA[i * po_procesu + j] < locMinA[i])
+                locMinA[i] = locA[i * po_procesu + j];
+        }
     }
 
     // #6
     MPI_Reduce(locC, C, N * M, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Gather(locMinB, po_procesu, MPI_INT, minB, po_procesu, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Reduce(locMinA, minA, N, MPI_INT, MPI_MIN, 0, MPI_COMM_WORLD);
 
     // #7
     if (rank == 0)
@@ -89,28 +91,29 @@ int main(int argc, char *argv[])
             printf("\n");
         }
 
-        printf("\nMinimum svake vrste matrice B:\n");
-        for (int i = 0; i < K; i++)
-            printf("minB[%d] = %d\n", i, minB[i]);
+        printf("\nMinimum svake vrste matrice A:\n");
+        for (int i = 0; i < N; i++)
+            printf("minA[%d] = %d\n", i, minA[i]);
     }
 
     // #8
     free(locA);
     free(locB);
-    free(locC);
-    free(locMinB);
+    
+    MPI_Type_free(&kolona_tip_v);
+    MPI_Type_free(&kolona_tip);
 
     MPI_Finalize();
+    return 0;
 }
 
 /*
-    #1 - alociranje memorije za stvari koje vec znamo koliko zauzimaju i mpi inicijalizacija
-    #2 - racunanje koliko ce svaki proces da dobije kolona i vrsta i dinamicka alokacija potrebnih lokalnih promenljivih
+    #1 - mpi inicijalizacija
+    #2 - racunanje koliko ce svaki proces da dobije kolona/vrsta i dinamicka alokacija tamo gde dimenzija zavisi od broja procesa
     #3 - proces 0 inicijalizuje matrice
-    #4 - pravljenje posebnog tipa za kolone i distribucija kolona i vrsta
-    #5 - izracunavanje rezultujuce matrice (svaki proces ucestvuje u delu izracunavanja cele rezultujuce matrice)
-         izracunavanje minimuma (svaki proces izracunava minimum za vrste koje ima)
-    #6 - sakupljanje rezultata reduce za matricu i gather za minimum
-    #7 - stampanje rezultata
-    #8 - nikako mem-leak
+    #4 - pravljenje posebnog tipa za kolone i rasturanje matrice A po kolonama, a matrice B po vrstama
+    #5 - mnozenje (potpuno isto kao ranije) i trazenje lokalnih minimuma za A, svako nalazi svoj minimum a na kraju se ti minimumi uporedjuju
+    #6 - REDUKCIJE: MPI_SUM za matricu C, i MPI_MIN da bi od lokalnih minimuma dobili prave globalne minimume za sve vrste
+    #7 - stampanje rezultata programa
+    #8 - dealokacija memorije / sprecavanje memory leak-a samo za malloc-ovane nizove
 */
