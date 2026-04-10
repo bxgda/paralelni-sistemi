@@ -70,8 +70,14 @@ int main(int argc, char *argv[])
             loc_prod[i] *= loc_A[j * K + i];
     }
 
-    // #8
-    MPI_Gather(loc_C, redovi_po_procesu, MPI_INT, C, redovi_po_procesu, MPI_INT, 0, MPI_COMM_WORLD);
+    // #8 
+    MPI_Datatype cTip_v, cTip;
+    MPI_Type_vector(redovi_po_procesu, 1, p, MPI_INT, &cTip_v);
+    MPI_Type_create_resized(cTip_v, 0, 1 * sizeof(int), &cTip);
+    MPI_Type_commit(&cTip);
+
+    MPI_Gather(loc_C, redovi_po_procesu, MPI_INT, C, 1, cTip, 0, MPI_COMM_WORLD);
+
     MPI_Reduce(loc_prod, prod, K, MPI_INT, MPI_PROD, 0, MPI_COMM_WORLD);
 
     // #9
@@ -91,19 +97,23 @@ int main(int argc, char *argv[])
     free(loc_C);
     free(loc_prod);
 
+    MPI_Type_free(&redTip);
+    MPI_Type_free(&cTip);
+
     MPI_Finalize();
+    return 0;
 }
 
 /*
     #1 - staticko alociranje memorije za promenljive za koje unapred znamo koliko ce da zauzimaju
     #2 - mpi inicijalizacija
-    #3 - izracunavanje koliko ce svaki red da dobije kolona i na osnovu toga dinamicko alociranje memorije za lokalne promenljive
+    #3 - izracunavanje koliko ce svaki proces da dobije redova i dinamicko alociranje memorije
     #4 - inicijalizacija matrice i vektora u procesu 0
-    #5 - posto se vrse ne salju po blokovima nego po navedenom principu, moramo da napravimo poseban tip za takvu distribuciju
-    #6 - distribucija redova tako da svaki proces dobije svoj par vrsta i distribucija vektora svima
-    #7 - svako racuna svoj deo za rezultujuci vektor (svaki proces potpuno izracunava "redova_po_procesu" delova vektora)
-         svaki proces ucestvuje u delu proizvoda svake kolone (svaki proces izracuna parcijalni proizvod za "redova_po_procesu" elemenata svake kolone)
-    #8 - sakupljamo rezultate, gather za vektor i reduce (mpi_sum) za rezultat proizvoda svake kolone
-    #9 - proces 0 ispisuje rezultate
-    #10 - necemo mem-leak
+    #5 - pravljenje posebnog tipa za distribuciju vrsta sa preskokom (svaki P dobija i, i+p, i+2p vrste)
+    #6 - distribucija redova (Scatter) i vektora (Bcast)
+    #7 - svako izracunava svoj deo za rezultujuci vektor C i svoj udeo u proizvodu kolona A
+    #8 - PRAVLJENJE POSEBNOG TIPA za prikupljanje elemenata (da bi se pravilno preskakala mesta u C i slozio ispravan redosled)
+         sakupljamo rezultate: Gather za vektor (uz pomoc novog tipa) i Reduce (mpi_prod) za proizvod kolona
+    #9 - proces 0 ispisuje rezultate u garantovano tacnom redosledu
+    #10 - dealokacija memorije i kreiranih tipova (nema leak-a)
 */
