@@ -1,10 +1,24 @@
+/*
+
+  1. zadatak: Napisati MPI program koji realizuje množenje matrice \( A_{k \times n} \) i vektora \( b_n \). Matrica i
+  vektor se inicijalizuju u master procesu. Matrica je podeljena u blokove po vrstama tako da će proces \( P_i \) dobiti
+  prvih \( 2^i \) vrsta, proces \( P_{i+1} \) dobije sledećih \( 2^{i+1} \) vrsta, itd. Vektor \( b \) se u celosti
+  šalje svim procesima. Predvideti da se slanje blokova matrica svakom procesu šalje jednim MPI_Send pozivom kojim se
+  šalju svi neophodni elementi matrice, dok se slanje vektora \( b \) obavlja grupnim operacijama. Svaki proces obavlja
+  odgovarajuća izračunavanja i učestvuje u generisanju rezultata. Rezultujući vektor \( d \) treba se naći u procesu
+  koji je učitao najviše vrsta matrice \( A \). Dati primer matrice \( A \) i vektora \( b \) i ilustrovati podelu
+  podataka po procesima, kao i izgled rezultata za izabran broj procesa. Napisati na koji se način iz komandne linije
+  vrši startovanje napisane MPI aplikacije. [45 poena]
+
+*/
+
 #include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define N 3
-#define K 15
+#define K 15 // 4 procesa: 1, 2, 4, 8 vrsta matrice A
 
 void main(int argc, char **argv)
 {
@@ -28,6 +42,7 @@ void main(int argc, char **argv)
             B[i] = 1;
     }
 
+    // #1
     MPI_Bcast(B, N, MPI_INT, 0, MPI_COMM_WORLD);
 
     int *locA = (int *)malloc(svoji_redovi * N * sizeof(int));
@@ -50,10 +65,12 @@ void main(int argc, char **argv)
     else
         MPI_Recv(locA, svoji_redovi * N, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
 
+    // #2
     for (int i = 0; i < svoji_redovi; i++)
         for (int j = 0; j < N; j++)
             locC[i] += locA[i * N + j] * B[j];
 
+    // #3
     if (rank == p - 1)
     {
         int pomeraj = K - svoji_redovi;
@@ -84,3 +101,11 @@ void main(int argc, char **argv)
 
     MPI_Finalize();
 }
+
+/*
+
+    #1 saljemo vektor B svima preko Bcast-a a vrste saljemo preko send i recv jer su blokovi razlicite velicine a i tako se trazi u zadatku 
+    #2 svaki proces racuna svoj deo rezultata #3 rezultujuci vektor C treba da se nalazi u procesu
+     koji je ucitao najvise (to je uvek poslednji proces) i onda ostali salju a on prima po tacnom redosledu i onda stampa rezultat
+
+*/
