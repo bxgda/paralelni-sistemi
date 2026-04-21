@@ -88,8 +88,7 @@ int main(int argc, char **argv)
     #3 - kreira se novi komunikator koji sadrzi samo procese na glavnoj dijagonali
     #4 - kreira se novi tip podatka koji predstavlja kolonu matrice A
     #5 - racunamo nove rankove i broj procesa u novom komunikatoru
-    #6 - master proces (novi rank 0) salje odgovarajuce kolone matrice A procesima u novom komunikatoru, a on sam prima
-   svoju kolonu (samo je pretumbamo) #7 - svaki proces racuna proizvod primljene kolone i stampa svoj novi rank i
-   proizvod
+    #6 - master proces (novi rank 0) salje odgovarajuce kolone matrice A procesima u novom komunikatoru, a on sam prima svoju kolonu (samo je pretumbamo) 
+    #7 - svaki proces racuna proizvod primljene kolone i stampa svoj novi rank i proizvod
 
 */
