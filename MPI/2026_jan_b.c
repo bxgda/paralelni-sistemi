@@ -3,7 +3,7 @@
    Napisati MPI program koji će omogućiti komunikaciju samo procesa na glavnoj dijagonali procesa u kvadratnoj mreži
    procesa kreiranjem komunikatora. Master proces (P0) svim procesima ove grupe šalje po jednu kolonu matrice A.
    Prikazati identifikatore procesa koji pripadaju novom komunikatoru, kao i proizvod primljene kolone u svakom procesu
-   komunikatora.
+   komunikatora
 
 */
 
